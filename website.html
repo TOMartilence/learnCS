@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ball and Beam Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.min.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script
+      id="MathJax-script"
+      async
+      src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+    ></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f7fa;
+        color: #333;
+      }
+
+      .container {
+        display: flex;
+        flex-wrap: wrap;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        gap: 20px;
+      }
+
+      .simulation-panel {
+        flex: 1;
+        min-width: 600px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+      }
+
+      .theory-panel {
+        flex: 1;
+        min-width: 400px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        color: #2c3e50;
+      }
+
+      h1 {
+        margin-top: 0;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+      }
+
+      #controls {
+        margin: 20px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      .control-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      label {
+        font-weight: 500;
+        min-width: 80px;
+      }
+
+      input[type="range"] {
+        flex-grow: 1;
+        height: 8px;
+        -webkit-appearance: none;
+        background: #dfe6e9;
+        border-radius: 4px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        background: #3498db;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .value-display {
+        min-width: 50px;
+        text-align: right;
+        font-family: monospace;
+        font-size: 1.1em;
+      }
+
+      canvas {
+        display: block;
+        margin: 0 auto;
+        border-radius: 8px;
+      }
+
+      .info-box {
+        background: #e3f2fd;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border-left: 4px solid #3498db;
+      }
+
+      .formula {
+        background: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        margin: 15px 0;
+      }
+
+      button {
+        background: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+
+      button:hover {
+        background: #2980b9;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .performance-metrics {
+        margin-top: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+      }
+
+      @media (max-width: 1000px) {
+        .container {
+          flex-direction: column;
+        }
+
+        .simulation-panel,
+        .theory-panel {
+          min-width: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="simulation-panel">
+        <h1>Ball and Beam Simulator</h1>
+
+        <div id="controls">
+          <div class="control-group">
+            <label for="kpSlider">Kp:</label>
+            <input
+              type="range"
+              id="kpSlider"
+              min="0"
+              max="10"
+              step="0.1"
+              value="1"
+            />
+            <span id="kpValue" class="value-display">1.0</span>
+          </div>
+
+          <div class="control-group">
+            <label for="kiSlider">Ki:</label>
+            <input
+              type="range"
+              id="kiSlider"
+              min="0"
+              max="10"
+              step="0.01"
+              value="0"
+            />
+            <span id="kiValue" class="value-display">0.0</span>
+          </div>
+
+          <div class="control-group">
+            <label for="kdSlider">Kd:</label>
+            <input
+              type="range"
+              id="kdSlider"
+              min="0"
+              max="10"
+              step="0.1"
+              value="0"
+            />
+            <span id="kdValue" class="value-display">0.0</span>
+          </div>
+
+          <div class="button-group">
+            <button id="resetBtn">Reset Simulation</button>
+            <button id="randomBtn">Random Position</button>
+          </div>
+        </div>
+        <canvas
+          id="graphCanvas"
+          width="560"
+          height="150"
+          style="margin-top: 20px; border: 1px solid #ccc; border-radius: 8px"
+        ></canvas>
+
+        <div id="canvas-container"></div>
+<div class="performance-metrics">
+  <h3>Performance Metrics</h3>
+  <p>Current Error: <span id="errorDisplay">0.0</span> px</p>
+  <p>Integral of Error: <span id="integralDisplay">0.0</span></p>
+  <p>Derivative of Error: <span id="derivativeDisplay">0.0</span></p>
+
+  <h4>Theoretical Analysis Instructions (MATLAB)</h4>
+  <ol>
+    <li>Open MATLAB and create a new script.</li>
+    <li>Define your PID controller values:
+      <pre>
+kp = 1;    % Proportional gain  
+ki = 0.5;  % Integral gain  
+kd = 0.1;  % Derivative gain  
+      </pre>
+    </li>
+    <li>Define gravity constant:
+      <pre>
+g = 9.8;
+      </pre>
+    </li>
+    <li>Specify the numerator and denominator of the system transfer function:
+      <pre>
+num = [kd*g, kp*g, ki*g];
+den = [1, kd*g, kp*g, ki*g, 0];
+      </pre>
+    </li>
+    <li>Create the transfer function and plot the step response:
+      <pre>
+system_tf = tf(num, den);
+step(system_tf);
+title('Step Response of PID Controlled System');
+xlabel('Time (s)');
+ylabel('Response');
+grid on;
+      </pre>
+    </li>
+  </ol>
+</div>
+
+
+
+      <div class="theory-panel">
+        <h2>Ball and Beam System</h2>
+
+        <div class="info-box">
+          <p>
+            This simulation demonstrates a classic control problem where a PID
+            controller adjusts the beam angle to keep the ball at the center
+            position.
+          </p>
+        </div>
+
+        <h3>PID Control</h3>
+        <p>
+          The PID controller generates the tilt angle θ based on the position
+          error:
+        </p>
+        <div class="formula"><div class="formula">
+
+  <p><b>PID Control Law (Time Domain):</b></p>
+  \[
+  u(t) = K_p e(t) + K_i \int_0^t e(\tau) d\tau + K_d \frac{d}{dt} e(t)
+  \]
+
+  <p><b>PID Control Law (Laplace Domain):</b></p>
+  \[
+  U(s) = \left( K_p + \frac{K_i}{s} + K_d s \right) E(s)
+  \]
+
+  <p><b>Plant Transfer Function:</b></p>
+  \[
+  G(s) = \frac{g}{s^2}
+  \]
+
+  <p><b>Open-Loop Transfer Function:</b></p>
+  \[
+  G_{OL}(s) = C(s) G(s) = \left( K_p + \frac{K_i}{s} + K_d s \right) \cdot \frac{g}{s^2}
+  \]
+  \[
+  G_{OL}(s) = g \left( \frac{K_p}{s^2} + \frac{K_i}{s^3} + \frac{K_d}{s} \right)
+  \]
+
+  <p><b>Closed-Loop Transfer Function with Unity Feedback:</b></p>
+  \[
+  T(s) = \frac{G_{OL}(s)}{1 + G_{OL}(s)}
+  = \frac{g \left( \frac{K_p}{s^2} + \frac{K_i}{s^3} + \frac{K_d}{s} \right)}{1 + g \left( \frac{K_p}{s^2} + \frac{K_i}{s^3} + \frac{K_d}{s} \right)}
+  \]
+
+  <p><b>Simplified Common Denominator:</b></p>
+  Multiply numerator and denominator by \( s^3 \) to get a proper rational form:
+  \[
+  T(s) = \frac{g (K_p s + K_i + K_d s^2)}{s^3 + g (K_p s + K_i + K_d s^2)}
+  \]
+
+  <p><b>Step Response:</b></p>
+  For unit step input, multiply by \( \frac{1}{s} \):
+  \[
+  Y(s) = T(s) \cdot \frac{1}{s}
+  = \frac{g (K_p s + K_i + K_d s^2)}{s \left[ s^3 + g (K_p s + K_i + K_d s^2) \right]}
+  \]
+
+  <p><b>Final Transfer Function:</b></p>
+  \[
+  Y(s) = \frac{g (K_d s^2 + K_p s + K_i)}{s^4 + g K_d s^3 + g K_p s^2 + g K_i s}
+  \]
+
+  <p><b>Inverse Laplace Transform:</b></p>
+  This is a 4th-order rational function. Analytic inverse Laplace is not possible in closed form.
+
+  <p><b>Solution:</b> Use numerical inverse Laplace or simulate time-domain response:</p>
+  \[
+  y(t) = \mathcal{L}^{-1} \left\{ \frac{g (K_d s^2 + K_p s + K_i)}{s^4 + g K_d s^3 + g K_p s^2 + g K_i s} \right\}
+  \]
+
+  <p><b>Note:</b> You can compute this using numerical libraries like SciPy (Python), MATLAB, or Symbolic/Numeric Laplace tools.</p>
+
+</div>
+
+
+
+        <h3>How to Use</h3>
+        <ul>
+          <li>Adjust the PID gains using the sliders</li>
+          <li>Start with just Kp (set Ki and Kd to 0)</li>
+          <li>Add Ki to eliminate steady-state error</li>
+          <li>Add Kd to reduce oscillations</li>
+          <li>Click "Random Position" to test disturbance rejection</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      let beam = {
+        x1: 50,
+        x2: 550,
+        baseY: 200,
+        leftHeight: 100,
+        rightHeight: 100,
+      };
+
+      let ball = {
+        x: 300,
+        velocity: 0,
+        radius: 15,
+      };
+
+      let kpSlider, kiSlider, kdSlider;
+      let kpValue, kiValue, kdValue;
+      let integral = 0,
+        prevError = 0;
+      let errorDisplay, integralDisplay, derivativeDisplay;
+      let resetBtn, randomBtn;
+      let graphCtx, graphCanvas;
+      let graphData = [];
+      const graphLength = 300; // number of data points
+
+      function setup() {
+        let canvas = createCanvas(600, 300);
+        canvas.parent("canvas-container");
+
+        kpSlider = document.getElementById("kpSlider");
+        kiSlider = document.getElementById("kiSlider");
+        kdSlider = document.getElementById("kdSlider");
+
+        kpValue = document.getElementById("kpValue");
+        kiValue = document.getElementById("kiValue");
+        kdValue = document.getElementById("kdValue");
+
+        errorDisplay = document.getElementById("errorDisplay");
+        integralDisplay = document.getElementById("integralDisplay");
+        derivativeDisplay = document.getElementById("derivativeDisplay");
+
+        resetBtn = document.getElementById("resetBtn");
+        randomBtn = document.getElementById("randomBtn");
+
+        // Update displayed values when sliders change
+        kpSlider.addEventListener("input", function () {
+          kpValue.textContent = this.value;
+        });
+
+        kiSlider.addEventListener("input", function () {
+          kiValue.textContent = this.value;
+        });
+
+        kdSlider.addEventListener("input", function () {
+          kdValue.textContent = this.value;
+        });
+
+        // Button event listeners
+        resetBtn.addEventListener("click", function () {
+          ball.x = 300;
+          ball.velocity = 0;
+          integral = 0;
+          prevError = 0;
+        });
+
+        randomBtn.addEventListener("click", function () {
+          ball.x = random(
+            beam.x1 + ball.radius + 50,
+            beam.x2 - ball.radius - 50
+          );
+          ball.velocity = random(-5, 5);
+        });
+
+        graphCanvas = document.getElementById("graphCanvas");
+        graphCtx = graphCanvas.getContext("2d");
+      }
+
+      function draw() {
+        background(245);
+
+        // Draw grid lines
+        stroke(220);
+        for (let x = 0; x < width; x += 50) {
+          line(x, 0, x, height);
+        }
+        for (let y = 0; y < height; y += 50) {
+          line(0, y, width, y);
+        }
+
+        // Get PID gains
+        const kp = parseFloat(kpSlider.value);
+        const ki = parseFloat(kiSlider.value);
+        const kd = parseFloat(kdSlider.value);
+
+        // Calculate beam endpoints
+        let y1 = beam.baseY - beam.leftHeight;
+        let y2 = beam.baseY - beam.rightHeight;
+
+        // Draw supports and beam
+        stroke(120);
+        strokeWeight(2);
+        line(beam.x1, beam.baseY, beam.x1, y1);
+        line(beam.x2, beam.baseY, beam.x2, y2);
+
+        // Draw beam
+        strokeWeight(4);
+        stroke(50, 50, 150);
+        line(beam.x1, y1, beam.x2, y2);
+        strokeWeight(1);
+
+        // Beam angle and physics
+        let angle = atan2(y2 - y1, beam.x2 - beam.x1);
+        let g = 9.8 / 60;
+        let acceleration = g * sin(angle);
+        ball.velocity += acceleration;
+        ball.x += ball.velocity;
+
+        // Limit ball to beam
+        if (ball.x < beam.x1 + ball.radius) {
+          ball.x = beam.x1 + ball.radius;
+          ball.velocity = 0;
+        }
+        if (ball.x > beam.x2 - ball.radius) {
+          ball.x = beam.x2 - ball.radius;
+          ball.velocity = 0;
+        }
+
+        // Control using PID
+        let desiredX = (beam.x1 + beam.x2) / 2;
+        let error = desiredX - ball.x;
+        integral += error;
+        integral = constrain(integral, -100, 100); // Limit integral windup
+        let derivative = error - prevError;
+        prevError = error;
+
+        let control = kp * error + ki * integral + kd * derivative;
+
+        beam.leftHeight = 100 + control;
+        beam.rightHeight = 100 - control;
+
+        // Update performance metrics
+        errorDisplay.textContent = error.toFixed(1);
+        integralDisplay.textContent = integral.toFixed(1);
+        derivativeDisplay.textContent = derivative.toFixed(1);
+
+        // Draw ball
+        let beamYAtBall = map(ball.x, beam.x1, beam.x2, y1, y2);
+        fill(70, 130, 180);
+        noStroke();
+        ellipse(ball.x, beamYAtBall - ball.radius, ball.radius * 2);
+
+        // Draw target position
+        stroke(255, 0, 0, 150);
+        strokeWeight(2);
+        line(desiredX, beam.baseY - 150, desiredX, beam.baseY - 100);
+        noStroke();
+        fill(255, 0, 0, 100);
+        ellipse(desiredX, beamYAtBall - ball.radius, 10, 10);
+
+        // Display PID values on canvas
+        fill(0);
+        textSize(14);
+        text(
+          `PID Values: Kp=${kp.toFixed(1)}, Ki=${ki.toFixed(
+            1
+          )}, Kd=${kd.toFixed(1)}`,
+          20,
+          30
+        );
+
+        // Display ball position
+        text(`Ball Position: ${(ball.x - beam.x1).toFixed(1)} px`, 20, 50);
+
+        // Display beam angle
+        text(`Beam Angle: ${degrees(angle).toFixed(1)}°`, 20, 70);
+
+        // Update graph data
+        graphData.push({ ballX: ball.x, setpoint: desiredX });
+        if (graphData.length > graphLength) graphData.shift();
+
+        // Draw graph
+        graphCtx.clearRect(0, 0, graphCanvas.width, graphCanvas.height);
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = "#2980b9";
+        graphCtx.lineWidth = 2;
+        graphData.forEach((pt, i) => {
+          let x = (i / graphLength) * graphCanvas.width;
+          let y =
+            graphCanvas.height -
+            ((pt.ballX - beam.x1) / (beam.x2 - beam.x1)) * graphCanvas.height;
+          if (i === 0) graphCtx.moveTo(x, y);
+          else graphCtx.lineTo(x, y);
+        });
+        graphCtx.stroke();
+
+        // Draw setpoint line
+        graphCtx.beginPath();
+        graphCtx.strokeStyle = "#e74c3c";
+        graphCtx.setLineDash([4, 4]);
+        graphCtx.moveTo(0, graphCanvas.height / 2);
+        graphCtx.lineTo(graphCanvas.width, graphCanvas.height / 2);
+        graphCtx.stroke();
+        graphCtx.setLineDash([]);
+      }
+
+
+      
+    </script>
+  </body>
+</html>
